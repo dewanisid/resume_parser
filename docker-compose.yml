@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # PostgreSQL — stores all job records and parsed resume data
   db:
