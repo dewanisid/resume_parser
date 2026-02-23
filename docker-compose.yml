@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+  # PostgreSQL — stores all job records and parsed resume data
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: resume_parser
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Redis — message broker for Celery task queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Django API — handles HTTP requests
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # Run migrations then start the dev server (hot-reload enabled)
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      # Mount source code for hot-reload (changes reflect without rebuilding)
+      - ./backend:/app
+      # Shared volume so the worker can read PDFs uploaded via the API
+      - media_data:/app/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Celery worker — picks up parse tasks from the Redis queue
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A config worker --loglevel=info --concurrency=2
+    volumes:
+      - ./backend:/app
+      # Must share the same volume as api so it can read uploaded PDFs
+      - media_data:/app/media
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:   # Persists database data across container restarts
+  media_data:      # Shared uploaded PDFs between api and worker
