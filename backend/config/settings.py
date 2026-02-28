@@ -25,8 +25,11 @@ INSTALLED_APPS = [
     # third-party
     "rest_framework",
     "corsheaders",
+    "rest_framework_simplejwt",
+    "django_ratelimit",
     # local
     "apps.parser",
+    "apps.users",
 ]
 
 MIDDLEWARE = [
@@ -84,12 +87,29 @@ AUTH_PASSWORD_VALIDATORS = [
 # Django REST Framework
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
-    # Phase 1: no authentication required
+    # Phase 2: all endpoints require a valid JWT access token by default.
+    # Individual views that must be public (register, login, refresh) override
+    # this with permission_classes = [AllowAny].
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+}
+
+# ---------------------------------------------------------------------------
+# JWT — access tokens expire in 1 hour; refresh tokens last 7 days
+# ---------------------------------------------------------------------------
+from datetime import timedelta  # noqa: E402
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    # Keep issued-at claim so tokens can be inspected for debugging
+    "UPDATE_LAST_LOGIN": True,
 }
 
 # ---------------------------------------------------------------------------
@@ -109,6 +129,18 @@ MEDIA_ROOT = env("MEDIA_ROOT", default=str(BASE_DIR / "media"))
 UPLOAD_SETTINGS = {
     "MAX_FILE_SIZE": 10 * 1024 * 1024,  # 10 MB
     "ALLOWED_EXTENSIONS": [".pdf"],
+}
+
+# ---------------------------------------------------------------------------
+# Cache — django-ratelimit requires a shared cache; point it at Redis so it
+# works correctly across multiple API worker processes.
+# Uses Redis database 1 (Celery uses database 0).
+# ---------------------------------------------------------------------------
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env("CELERY_BROKER_URL", default="redis://localhost:6379/1"),
+    }
 }
 
 # ---------------------------------------------------------------------------

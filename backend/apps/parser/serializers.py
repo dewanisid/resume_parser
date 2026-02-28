@@ -13,6 +13,7 @@ class ResumeParseJobSerializer(serializers.ModelSerializer):
         model = ResumeParseJob
         fields = [
             "id",
+            "user_id",
             "original_filename",
             "file_size_bytes",
             "status",
