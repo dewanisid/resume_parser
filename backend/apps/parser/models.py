@@ -141,3 +141,54 @@ class ParsedResumeData(models.Model):
 
     def __str__(self):
         return f"ParsedData for {self.job.original_filename} (score={self.confidence_score:.2f})"
+
+
+class AuditLog(models.Model):
+    """
+    Append-only log of significant user actions.
+
+    Records who did what, when, and from which IP. Used for debugging,
+    security auditing, and tracing the history of a job.
+    Never updated or deleted — only inserted.
+    """
+
+    ACTION_UPLOAD = "upload"
+    ACTION_DELETE = "delete"
+    ACTION_LOGIN = "login"
+    ACTION_REGISTER = "register"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Nullable — anonymous or system actions have no user
+    user = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+    )
+    # Nullable — not all actions are tied to a specific job
+    job = models.ForeignKey(
+        ResumeParseJob,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+    )
+
+    action = models.CharField(max_length=50, db_index=True)
+    # Flexible dict for action-specific context (filename, file_size, etc.)
+    details = models.JSONField(default=dict)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "audit_logs"
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["user", "timestamp"]),
+            models.Index(fields=["action"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.action}] {self.user} @ {self.timestamp:%Y-%m-%d %H:%M}"

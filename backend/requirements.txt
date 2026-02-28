@@ -23,6 +23,12 @@ anthropic==0.40.0
 # Validation
 pydantic[email]==2.5.3
 
+# Authentication
+djangorestframework-simplejwt==5.3.1
+
+# Rate limiting
+django-ratelimit==4.1.0
+
 # Production server
 gunicorn==21.2.0
 
