@@ -73,7 +73,7 @@ def test_raises_after_all_retries_on_invalid_json(extractor):
     bad_resp = _mock_response("not valid json {{{")
 
     with patch.object(extractor.client.messages, "create", return_value=bad_resp):
-        with pytest.raises(LLMExtractionError, match="Invalid JSON"):
+        with pytest.raises(LLMExtractionError, match="invalid JSON"):
             extractor.extract_structured_data("some resume text")
 
 
