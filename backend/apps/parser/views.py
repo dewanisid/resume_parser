@@ -163,20 +163,7 @@ class JobStatusView(APIView):
         if job.user != request.user:
             return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        data = ResumeParseJobSerializer(job).data
-
-        # If parsing succeeded, attach a link to the parsed data
-        if job.status == ResumeParseJob.STATUS_COMPLETED:
-            try:
-                parsed = job.parsed_data
-                data["result"] = {
-                    "data_id": str(parsed.id),
-                    "confidence_score": parsed.confidence_score,
-                }
-            except ParsedResumeData.DoesNotExist:
-                pass
-
-        return Response(data)
+        return Response(ResumeParseJobSerializer(job).data)
 
 
 class ParsedDataDetailView(APIView):

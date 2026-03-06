@@ -9,6 +9,22 @@ from .models import ResumeParseJob, ParsedResumeData
 
 
 class ResumeParseJobSerializer(serializers.ModelSerializer):
+    # Included for completed jobs so the frontend can link to /results/:data_id.
+    # Returns {"data_id": "...", "confidence_score": 0.95} or null.
+    result = serializers.SerializerMethodField()
+
+    def get_result(self, obj):
+        if obj.status != ResumeParseJob.STATUS_COMPLETED:
+            return None
+        try:
+            parsed = obj.parsed_data
+            return {
+                "data_id": str(parsed.id),
+                "confidence_score": parsed.confidence_score,
+            }
+        except ParsedResumeData.DoesNotExist:
+            return None
+
     class Meta:
         model = ResumeParseJob
         fields = [
@@ -22,6 +38,7 @@ class ResumeParseJobSerializer(serializers.ModelSerializer):
             "started_at",
             "completed_at",
             "processing_time",
+            "result",
         ]
         read_only_fields = fields
 
