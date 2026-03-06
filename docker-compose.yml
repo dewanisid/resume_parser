@@ -69,6 +69,27 @@ services:
       redis:
         condition: service_healthy
 
+  # React dev server — serves the frontend at http://localhost:5173
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      # Mount source code so edits on your laptop hot-reload in the browser
+      - ./frontend:/app
+      # Anonymous volume keeps the container's node_modules intact.
+      # Without this, the source mount above would overwrite them with the
+      # (empty) host directory, breaking all imports.
+      - /app/node_modules
+    environment:
+      # Tell Vite's proxy to forward /api to the Django service by name.
+      # Inside Docker, containers talk to each other via service names, not localhost.
+      - API_TARGET=http://api:8000
+    depends_on:
+      - api
+
 volumes:
   postgres_data:   # Persists database data across container restarts
   media_data:      # Shared uploaded PDFs between api and worker

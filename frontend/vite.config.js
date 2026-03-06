@@ -18,12 +18,20 @@ export default defineConfig({
     },
   },
   server: {
+    // listen on all interfaces so the port is reachable from outside the container
+    host: true,
+    // File-change detection inside Docker requires polling because Linux inotify
+    // events don't propagate into containers. Has no effect when running locally.
+    watch: {
+      usePolling: true,
+    },
     // The proxy forwards any request starting with /api from the Vite dev server
-    // (port 5173) to the Django server (port 8000).
-    // This means axios calls to '/api/v1/...' just work — no CORS issues in dev.
+    // (port 5173) to the Django server.
+    // API_TARGET defaults to localhost:8000 for local dev.
+    // docker-compose overrides it to http://api:8000 (Docker service name).
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.API_TARGET || 'http://localhost:8000',
         changeOrigin: true,
       },
     },
